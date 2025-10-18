@@ -13,12 +13,13 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onAddTask })
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Task['priority']>('Medium');
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (!title || !dueDate) {
-      // Basic validation
-      alert('Please fill in the title and due date.');
+      setError('Please fill in the title and due date.');
       return;
     }
     onAddTask({ title, description, dueDate: new Date(dueDate), priority });
@@ -75,6 +76,9 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onAddTask })
             </select>
           </div>
         </div>
+        
+        {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+
         <div className="flex justify-end gap-4 pt-4">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel

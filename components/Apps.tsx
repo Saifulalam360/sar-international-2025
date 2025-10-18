@@ -1,19 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faGlobe, faServer, faMobileAlt, faDatabase, faCubes } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faGlobe, faServer, faMobileAlt, faDatabase, faCubes, faSearch } from '@fortawesome/free-solid-svg-icons';
+// Fix: Use relative path for local module import.
 import type { ManagedApp, AppStatus } from '../types';
 import AppDetailView from './AppDetailView';
 import AppManagementModal from './AppManagementModal';
 import PageHeader from './common/PageHeader';
 import Button from './ui/Button';
+// Fix: Use relative path for local module import.
+import { useDataContext } from '../contexts/DataContext';
 
 interface AppsProps {
-  apps: ManagedApp[];
-  onAddApp: (newAppData: Omit<ManagedApp, 'id' | 'lastDeployed' | 'resources' | 'environmentVariables' | 'deployments' | 'logs' | 'status'>) => void;
-  onUpdateApp: (updatedApp: ManagedApp) => void;
-  onDeleteApp: (appId: number) => void;
   initialStatusFilter: AppStatus | null;
   onClearFilter: () => void;
+  appIdToSelect?: number | null;
 }
 
 const PLATFORM_ICONS: Record<ManagedApp['platform'], any> = {
@@ -85,23 +85,35 @@ const AppCard: React.FC<{ app: ManagedApp; onSelect: () => void }> = ({ app, onS
 );
 
 
-const Apps: React.FC<AppsProps> = ({ apps, onAddApp, onUpdateApp, onDeleteApp, initialStatusFilter, onClearFilter }) => {
+const Apps: React.FC<AppsProps> = ({ initialStatusFilter, onClearFilter, appIdToSelect }) => {
+  const { apps, handleAddApp, handleUpdateApp, handleDeleteApp } = useDataContext();
   const [selectedApp, setSelectedApp] = useState<ManagedApp | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<AppStatus | 'All'>(initialStatusFilter || 'All');
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Effect to reset the parent's filter state if the user changes the filter locally.
-  // This prevents the filter from being "stuck" if they navigate away and then back.
   useEffect(() => {
     if (initialStatusFilter && statusFilter !== initialStatusFilter) {
         onClearFilter();
     }
   }, [statusFilter, initialStatusFilter, onClearFilter]);
 
+  useEffect(() => {
+    if (appIdToSelect) {
+        const appToSelect = apps.find(app => app.id === appIdToSelect);
+        if (appToSelect) {
+            setSelectedApp(appToSelect);
+        }
+    }
+  }, [appIdToSelect, apps]);
+
   const filteredApps = useMemo(() => {
-      if (statusFilter === 'All') return apps;
-      return apps.filter(app => app.status === statusFilter);
-  }, [apps, statusFilter]);
+      return apps.filter(app => {
+          const statusMatch = statusFilter === 'All' || app.status === statusFilter;
+          const searchMatch = app.name.toLowerCase().includes(searchTerm.toLowerCase());
+          return statusMatch && searchMatch;
+      });
+  }, [apps, statusFilter, searchTerm]);
 
   const handleSelectApp = (app: ManagedApp) => {
     setSelectedApp(app);
@@ -112,12 +124,12 @@ const Apps: React.FC<AppsProps> = ({ apps, onAddApp, onUpdateApp, onDeleteApp, i
   };
 
   const handleUpdateAndReselect = (updatedApp: ManagedApp) => {
-    onUpdateApp(updatedApp);
-    setSelectedApp(updatedApp); // Reselect the app to show updated state
+    handleUpdateApp(updatedApp);
+    setSelectedApp(updatedApp);
   };
 
   const handleDeleteAndGoBack = (appId: number) => {
-    onDeleteApp(appId);
+    handleDeleteApp(appId);
     setSelectedApp(null);
   };
 
@@ -140,8 +152,7 @@ const Apps: React.FC<AppsProps> = ({ apps, onAddApp, onUpdateApp, onDeleteApp, i
             </Button>
         </PageHeader>
         
-        <div className="flex items-center gap-2 mb-6">
-            <span className="text-sm text-gray-400">Filter by status:</span>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
             <div className="flex items-center bg-[#0D1117] rounded-full p-1">
                 {FILTER_OPTIONS.map(status => (
                     <button
@@ -153,6 +164,16 @@ const Apps: React.FC<AppsProps> = ({ apps, onAddApp, onUpdateApp, onDeleteApp, i
                     </button>
                 ))}
             </div>
+            <div className="relative w-full sm:w-64">
+                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input 
+                    type="text" 
+                    placeholder="Search by name..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-[#0D1117] border border-gray-700 rounded-full py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                />
+            </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -160,12 +181,14 @@ const Apps: React.FC<AppsProps> = ({ apps, onAddApp, onUpdateApp, onDeleteApp, i
               <AppCard key={app.id} app={app} onSelect={() => handleSelectApp(app)} />
             )) : (
                 <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 text-center py-16 text-gray-500">
-                    <p>No applications found for the "{statusFilter}" filter.</p>
+                    <FontAwesomeIcon icon={faCubes} className="text-5xl mb-4" />
+                    <h3 className="font-semibold text-lg text-gray-400">No Applications Found</h3>
+                    <p>No applications were found that match your current filter and search criteria.</p>
                 </div>
             )}
         </div>
       </div>
-      {isModalOpen && <AppManagementModal onClose={() => setIsModalOpen(false)} onSave={onAddApp} />}
+      {isModalOpen && <AppManagementModal onClose={() => setIsModalOpen(false)} onSave={handleAddApp} />}
     </>
   );
 };

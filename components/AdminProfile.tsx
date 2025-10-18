@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Administrator } from '../types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faUser, faShieldAlt, faKey, faHistory, faDatabase, faChartBar, faSave, faExclamationTriangle, faLock } from '@fortawesome/free-solid-svg-icons';
-import { PERMISSIONS_LIST } from '../constants';
+import { faArrowLeft, faUser, faShieldAlt, faKey, faHistory, faDatabase, faChartBar, faSave, faExclamationTriangle, faLock, faCamera, faCheck, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { PERMISSION_CATEGORIES } from '../constants';
 import Tabs, { Tab } from './common/Tabs';
 import Button from './ui/Button';
+import ToggleSwitch from './ui/ToggleSwitch';
+import { useToast } from '../../contexts/ToastContext';
+import { useDataContext } from '../../contexts/DataContext';
+import CollapsibleCard from './ui/CollapsibleCard';
 
 interface AdminProfileProps {
     admin: Administrator;
@@ -20,6 +24,10 @@ const STATUS_STYLES: Record<Administrator['status'], string> = {
 
 const AdminProfile: React.FC<AdminProfileProps> = ({ admin, onUpdateAdmin, onBack }) => {
     const [editableAdmin, setEditableAdmin] = useState<Administrator>({ ...admin });
+    const { addToast } = useToast();
+    const { isLoading } = useDataContext();
+    const [isSaving, setIsSaving] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -33,13 +41,45 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ admin, onUpdateAdmin, onBac
         setEditableAdmin(prev => ({ ...prev, permissions: newPermissions }));
     };
     
-    const handle2FAToggle = () => {
-        setEditableAdmin(prev => ({ ...prev, twoFactorEnabled: !prev.twoFactorEnabled }));
+    const handleCategoryPermissionChange = (categoryPermissions: string[], select: boolean) => {
+        setEditableAdmin(prev => {
+            const currentPermissions = new Set(prev.permissions);
+            if (select) {
+                categoryPermissions.forEach(p => currentPermissions.add(p));
+            } else {
+                categoryPermissions.forEach(p => currentPermissions.delete(p));
+            }
+            return { ...prev, permissions: Array.from(currentPermissions) };
+        });
+    };
+    
+    const handle2FAToggle = (isChecked: boolean) => {
+        setEditableAdmin(prev => ({ ...prev, twoFactorEnabled: isChecked }));
     };
 
     const handleSaveChanges = () => {
-        onUpdateAdmin(editableAdmin);
-        alert('Changes saved successfully!');
+        setIsSaving(true);
+        // Simulate API call
+        setTimeout(() => {
+            onUpdateAdmin(editableAdmin);
+            setIsSaving(false);
+            addToast({ message: 'Administrator profile saved!', type: 'success' });
+        }, 1000);
+    };
+
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setEditableAdmin(prev => ({ ...prev, avatarUrl: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const triggerAvatarUpload = () => {
+        fileInputRef.current?.click();
     };
     
     const TABS: Tab[] = [
@@ -94,9 +134,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ admin, onUpdateAdmin, onBac
                             <h4 className="font-semibold text-white">Two-Factor Authentication (2FA)</h4>
                             <p className="text-sm text-gray-400">Enhance account security with 2FA.</p>
                         </div>
-                        <button onClick={handle2FAToggle} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${editableAdmin.twoFactorEnabled ? 'bg-blue-600' : 'bg-gray-600'}`}>
-                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${editableAdmin.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                        <ToggleSwitch checked={editableAdmin.twoFactorEnabled} onChange={handle2FAToggle} />
                     </div>
                     <div className="flex justify-between items-center p-4 bg-[#0D1117] rounded-lg border border-gray-800">
                         <div>
@@ -122,13 +160,46 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ admin, onUpdateAdmin, onBac
             content: (
                 <div>
                     <h3 className="text-xl font-bold text-white mb-4">Role & Permissions</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 bg-[#0D1117] rounded-lg border border-gray-800">
-                        {PERMISSIONS_LIST.map(permission => (
-                            <label key={permission} className="flex items-center space-x-3 cursor-pointer">
-                                <input type="checkbox" checked={editableAdmin.permissions.includes(permission)} onChange={() => handlePermissionChange(permission)} className="form-checkbox h-5 w-5 bg-transparent border-gray-600 rounded-md text-blue-500 focus:ring-blue-500" />
-                                <span className="text-sm text-gray-300 font-mono">{permission}</span>
-                            </label>
-                        ))}
+                    <div className="space-y-4">
+                        {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => {
+                            const allInCategorySelected = permissions.every(p => editableAdmin.permissions.includes(p));
+                            
+                            return (
+                                <CollapsibleCard 
+                                    key={category} 
+                                    title={category}
+                                    defaultOpen={false}
+                                >
+                                    <div className="flex justify-end mb-4 -mt-2">
+                                        <button
+                                            onClick={() => handleCategoryPermissionChange(permissions, !allInCategorySelected)}
+                                            className="text-xs font-semibold text-purple-400 hover:underline"
+                                        >
+                                            {allInCategorySelected ? 'Deselect All' : 'Select All'}
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {permissions.map(permission => (
+                                            <label key={permission} htmlFor={permission} className="flex items-center space-x-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    id={permission}
+                                                    checked={editableAdmin.permissions.includes(permission)}
+                                                    onChange={() => handlePermissionChange(permission)}
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0D1117] border-2 border-gray-600 peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-colors flex-shrink-0">
+                                                    <svg className="w-3 h-3 text-white hidden peer-checked:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm text-gray-300 font-mono select-none">{permission}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </CollapsibleCard>
+                            )
+                        })}
                     </div>
                 </div>
             ) 
@@ -234,15 +305,35 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ admin, onUpdateAdmin, onBac
                     Back to All Administrators
                 </button>
                  <div className="flex items-center gap-4">
-                    <img src={editableAdmin.avatarUrl} alt={editableAdmin.name} className="w-16 h-16 rounded-full"/>
+                    <div className="relative group">
+                        <img src={editableAdmin.avatarUrl} alt={editableAdmin.name} className="w-16 h-16 rounded-full"/>
+                        <button 
+                            onClick={triggerAvatarUpload}
+                            className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Change profile picture"
+                        >
+                            <FontAwesomeIcon icon={faCamera} />
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/gif"
+                        />
+                    </div>
                     <div>
                         <h1 className="text-3xl font-bold text-white">{editableAdmin.name}</h1>
                         <span className={`px-3 py-1 text-xs font-bold rounded-full border ${STATUS_STYLES[editableAdmin.status]}`}>{editableAdmin.status}</span>
                     </div>
                 </div>
             </div>
-             <Button onClick={handleSaveChanges} leftIcon={faSave}>
-                Save Changes
+             <Button 
+                onClick={handleSaveChanges} 
+                leftIcon={isSaving ? faSpinner : faSave}
+                disabled={isSaving || isLoading}
+            >
+                {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
         </div>
         

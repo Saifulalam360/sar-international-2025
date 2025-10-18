@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+// Fix: Use relative path for local module import.
 import type { Task } from '../types';
+// Fix: Use relative path for local module import.
+import { useDataContext } from '../contexts/DataContext';
 
 const PRIORITY_COLORS: Record<Task['priority'], string> = {
   High: 'bg-red-500',
@@ -13,12 +16,8 @@ const TaskDot: React.FC<{ task: Task }> = ({ task }) => (
   <div className={`w-2 h-2 rounded-full ${PRIORITY_COLORS[task.priority]}`} title={task.title} />
 );
 
-
-interface CalendarViewProps {
-  tasks: Task[];
-}
-
-const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
+const CalendarView: React.FC = () => {
+  const { tasks } = useDataContext();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'year'>('month');
 
@@ -65,10 +64,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
   const daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   return (
-    <div className="flex-1 flex flex-col bg-[#161B22] p-6 rounded-xl border border-gray-800">
+    <div className="flex-1 flex flex-col bg-[#161B22] p-4 sm:p-6 rounded-xl border border-gray-800">
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-white">{monthName} {year}</h1>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-white whitespace-nowrap">{monthName} {year}</h1>
           <div className="flex items-center gap-1">
             <button onClick={handlePrevMonth} className="w-8 h-8 rounded-full hover:bg-gray-700/50 flex items-center justify-center text-gray-400" aria-label="Previous month">
               <FontAwesomeIcon icon={faChevronLeft} />
@@ -95,7 +94,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
       </div>
       <div className="grid grid-cols-7 gap-px bg-gray-800 flex-1 border border-gray-800 rounded-lg overflow-hidden">
         {daysOfWeek.map(day => (
-          <div key={day} className="text-center py-2 text-xs font-bold text-gray-500 bg-[#161B22]">
+          <div key={day} className="text-center py-1 sm:py-2 text-[0.6rem] sm:text-xs font-bold text-gray-500 bg-[#161B22]">
             {day}
           </div>
         ))}
@@ -103,13 +102,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
           if (!date) return <div key={index} />;
           const isCurrentMonth = date.getMonth() === currentDate.getMonth();
           const tasksOnDay = tasks.filter(t => t.dueDate.toDateString() === date.toDateString());
+          const isToday = date.toDateString() === new Date().toDateString();
           
           return (
-            <div key={index} className="bg-[#161B22] p-2 flex flex-col min-h-[90px]">
-              <span className={`font-semibold text-sm ${isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}`}>
+            <div key={index} className={`bg-[#161B22] p-1 sm:p-2 flex flex-col min-h-[70px] sm:min-h-[90px] transition-colors duration-200 hover:bg-[#0D1117] ${isToday ? 'bg-purple-600/10' : ''}`}>
+              <span className={`font-semibold text-xs sm:text-sm ${isCurrentMonth ? (isToday ? 'text-purple-400' : 'text-gray-300') : 'text-gray-700'}`}>
                 {date.getDate()}
               </span>
-              <div className="mt-2 flex flex-wrap gap-1">
+              <div className="mt-1 sm:mt-2 flex flex-wrap gap-1">
                 {tasksOnDay.map(task => <TaskDot key={task.id} task={task} />)}
               </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { IconDefinition } from '@fortawesome/free-solid-svg-icons';
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 
 export interface Tab {
     id: string;
@@ -19,12 +19,12 @@ const Tabs: React.FC<TabsProps> = ({ tabs, initialTabId }) => {
 
     return (
         <div>
-            <div className="flex border-b border-gray-700 mb-6">
+            <div className="flex border-b border-gray-700 mb-6 overflow-x-auto">
                 {tabs.map(tab => (
                     <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id)} 
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab.id ? 'border-purple-500 text-white' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors flex-shrink-0 ${activeTab === tab.id ? 'border-purple-500 text-white' : 'border-transparent text-gray-400 hover:text-white'}`}
                     >
                         <FontAwesomeIcon icon={tab.icon} className="w-4 h-4" />
                         <span>{tab.label}</span>

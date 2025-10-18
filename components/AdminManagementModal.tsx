@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// Fix: Use relative path for local module import.
 import type { Administrator } from '../types';
 import Modal from './ui/Modal';
 import Button from './ui/Button';

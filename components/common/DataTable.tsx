@@ -20,9 +20,10 @@ interface SortConfig<T> {
 interface DataTableProps<T> {
   columns: ColumnDefinition<T>[];
   data: T[];
+  onRowClick?: (item: T) => void;
 }
 
-const DataTable = <T extends {}>({ columns, data }: DataTableProps<T>) => {
+const DataTable = <T extends {}>({ columns, data, onRowClick }: DataTableProps<T>) => {
   const [sortConfig, setSortConfig] = useState<SortConfig<T> | null>(null);
 
   const sortedData = useMemo(() => {
@@ -67,8 +68,8 @@ const DataTable = <T extends {}>({ columns, data }: DataTableProps<T>) => {
         <thead className="text-xs text-gray-400 uppercase bg-[#161B22]">
           <tr>
             {columns.map((col) => (
-              <th key={String(col.key)} className="px-6 py-3" onClick={() => requestSort(col.key)}>
-                <div className="flex items-center gap-2 cursor-pointer select-none">
+              <th key={String(col.key)} className="px-6 py-3">
+                 <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => requestSort(col.key)}>
                   {col.header}
                   <FontAwesomeIcon icon={getSortIcon(col.key)} />
                 </div>
@@ -77,15 +78,27 @@ const DataTable = <T extends {}>({ columns, data }: DataTableProps<T>) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800">
-          {sortedData.map((item, index) => (
-            <tr key={index}>
-              {columns.map((col) => (
-                <td key={`${String(col.key)}-${index}`} className="px-6 py-4">
-                  {col.render ? col.render(item) : String(item[col.key as keyof T] ?? '')}
-                </td>
-              ))}
+          {sortedData.length > 0 ? (
+            sortedData.map((item, index) => (
+              <tr 
+                key={index} 
+                className={`hover:bg-[#161B22] transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                onClick={() => onRowClick && onRowClick(item)}
+              >
+                {columns.map((col) => (
+                  <td key={`${String(col.key)}-${index}`} className="px-6 py-4">
+                    {col.render ? col.render(item) : String(item[col.key as keyof T] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={columns.length} className="text-center py-10 text-gray-500">
+                No data available.
+              </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

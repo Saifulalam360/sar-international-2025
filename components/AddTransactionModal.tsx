@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// Fix: Use relative path for local module import.
 import type { Transaction, Account, TransactionCategory } from '../types';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
@@ -36,7 +37,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ accounts, onC
   };
 
   const incomeCategories: TransactionCategory[] = ['Salary', 'Freelance', 'Other'];
-  const expenseCategories: TransactionCategory[] = ['Groceries', 'Utilities', 'Entertainment', 'Other'];
+  const expenseCategories: TransactionCategory[] = ['Groceries', 'Utilities', 'Entertainment', 'Software', 'Hardware', 'Other'];
   
   const availableCategories = type === 'income' ? incomeCategories : expenseCategories;
   
